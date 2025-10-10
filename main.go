@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/makhammatovb/femProject/internal/routes"
-	"github.com/makhammatovb/femProject/internal/app"
+	"github.com/makhammatovb/Articles/internal/routes"
+	"github.com/makhammatovb/Articles/internal/app"
 )
 
 // main function to start the server

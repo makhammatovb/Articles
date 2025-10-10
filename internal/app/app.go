@@ -6,24 +6,24 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/makhammatovb/femProject/internal/api"
+	"github.com/makhammatovb/Articles/internal/api"
 )
 
 // Application struct includes logger and handler from api package
 type Application struct {
 	Logger         *log.Logger
-	WorkoutHandler *api.WorkoutHandler
+	ArticleHandler *api.ArticleHandler
 }
 
 // NewApplication creates a new instance of Application
 func NewApplication() (*Application, error) {
 	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
 
-	// Initialize handlers from api package, creates a new instance of WorkoutHandler and returns pointer to it
-	workoutHandler := api.NewWorkoutHandler()
+	// Initialize handlers from api package, creates a new instance of ArticleHandler and returns pointer to it
+	ArticleHandler := api.NewArticleHandler()
 	app := &Application{
 		Logger:         logger,
-		WorkoutHandler: workoutHandler,
+		ArticleHandler: ArticleHandler,
 	}
 	return app, nil
 }
