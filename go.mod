@@ -1,4 +1,4 @@
-module github.com/makhammatovb/femProject
+module github.com/makhammatovb/Articles
 
 go 1.24.5
 
