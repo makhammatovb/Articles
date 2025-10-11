@@ -17,6 +17,10 @@ func NewArticleHandler() *ArticleHandler {
 }
 
 // HandleGetArticleByID handles the GET request to retrieve a Article by its ID.
+// wh *ArticleHandler is the receiver 
+// *ArticleHandler means the method operates on a pointer to ArticleHandler
+// w http.ResponseWriter is used to write the response back to the client
+// r *http.Request represents the incoming HTTP request
 func (wh *ArticleHandler) HandleGetArticleByID(w http.ResponseWriter, r *http.Request) {
 	
 	// retrieves the Article ID from the URL parameters

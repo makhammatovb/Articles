@@ -10,12 +10,14 @@ import (
 )
 
 // Application struct includes logger and handler from api package
+// central container for keeping application-wide dependencies
 type Application struct {
 	Logger         *log.Logger
 	ArticleHandler *api.ArticleHandler
 }
 
 // NewApplication creates a new instance of Application
+// and returns a pointer to it with error
 func NewApplication() (*Application, error) {
 	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
 
