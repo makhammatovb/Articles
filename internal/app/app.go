@@ -1,12 +1,15 @@
 package app
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/makhammatovb/Articles/internal/api"
+	"github.com/makhammatovb/Articles/internal/store"
+	"github.com/makhammatovb/Articles/migrations"
 )
 
 // Application struct includes logger and handler from api package
@@ -14,11 +17,20 @@ import (
 type Application struct {
 	Logger         *log.Logger
 	ArticleHandler *api.ArticleHandler
+	DB             *sql.DB
 }
 
 // NewApplication creates a new instance of Application
 // and returns a pointer to it with error
 func NewApplication() (*Application, error) {
+	pgDB, err := store.Open()
+	if err != nil {
+		return nil, err
+	}
+	err = store.MigrateFS(pgDB, migrations.FS, ".")
+	if err != nil {
+		panic(err)
+	}
 	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
 
 	// Initialize handlers from api package, creates a new instance of ArticleHandler and returns pointer to it
@@ -26,6 +38,7 @@ func NewApplication() (*Application, error) {
 	app := &Application{
 		Logger:         logger,
 		ArticleHandler: ArticleHandler,
+		DB:             pgDB,
 	}
 	return app, nil
 }
