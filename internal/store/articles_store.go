@@ -2,6 +2,8 @@ package store
 
 import (
 	"database/sql"
+	"fmt"
+	"time"
 )
 
 type Article struct {
@@ -11,8 +13,8 @@ type Article struct {
 	Image           string         `json:"image"`
 	AuthorID        int            `json:"author_id"`
 	Paraghraps      []Paraghraph    `json:"paraghraps"`
-	CreatedAt       string         `json:"created_at"`
-	UpdatedAt       string         `json:"updated_at"`
+	CreatedAt       time.Time         `json:"created_at"`
+	UpdatedAt       time.Time         `json:"updated_at"`
 }
 
 type Paraghraph struct {
@@ -20,8 +22,8 @@ type Paraghraph struct {
 	Headline        string   `json:"headline"`
 	Body            string   `json:"body"`
 	OrderIndex      int      `json:"order_index"`
-	CreatedAt       string   `json:"created_at"`
-	UpdatedAt       string   `json:"updated_at"`
+	CreatedAt       time.Time   `json:"created_at"`
+	UpdatedAt       time.Time   `json:"updated_at"`
 }
 
 type PostgresArticleStore struct {
@@ -33,14 +35,14 @@ func NewPostgresArticleStore(db *sql.DB) *PostgresArticleStore {
 }
 
 type ArticleStore interface {
-	CreatedArticle(article *Article) (*Article, error)
+	CreateArticle(article *Article) (*Article, error)
 	GetArticleByID(id int64) (*Article, error)
 }
 
 func (pg *PostgresArticleStore) CreateArticle(article *Article) (*Article, error) {
 	tx, err := pg.db.Begin()
 	if err != nil {
-
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
@@ -55,7 +57,7 @@ func (pg *PostgresArticleStore) CreateArticle(article *Article) (*Article, error
 	for _, paraghraph := range article.Paraghraps {
 		query := 
 		`INSERT INTO paraghraps (article_id, headline, body, order_index)
-		VALUES ($1, $2, $3, $4);
+		VALUES ($1, $2, $3, $4) RETURNING id;
 		`
 		err = tx.QueryRow(query, article.ID, paraghraph.Headline, paraghraph.Body, paraghraph.OrderIndex).Scan(&paraghraph.ID)
 		if err != nil {
@@ -70,6 +72,6 @@ func (pg *PostgresArticleStore) CreateArticle(article *Article) (*Article, error
 }
 
 func (pg *PostgresArticleStore) GetArticleByID(id int64) (*Article, error) {
-	Article := &Article{}
-	return Article, nil
+	article := &Article{}
+	return article, nil
 }
