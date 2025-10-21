@@ -32,9 +32,10 @@ func NewApplication() (*Application, error) {
 		panic(err)
 	}
 	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
+	articleStore := store.NewPostgresArticleStore(pgDB)
 
 	// Initialize handlers from api package, creates a new instance of ArticleHandler and returns pointer to it
-	ArticleHandler := api.NewArticleHandler()
+	ArticleHandler := api.NewArticleHandler(articleStore, logger)
 	app := &Application{
 		Logger:         logger,
 		ArticleHandler: ArticleHandler,
