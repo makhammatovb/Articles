@@ -75,6 +75,17 @@ func (pg *PostgresArticleStore) CreateArticle(article *Article) (*Article, error
 
 func (pg *PostgresArticleStore) GetArticleByID(id int64) (*Article, error) {
 	article := &Article{}
+	query := `
+	SELECT id, title, description, image, author_id, created_at, updated_at FROM articles WHERE id = $1;
+	`
+	row := pg.db.QueryRow(query, id)
+	err := row.Scan(&article.ID, &article.Title, &article.Description, &article.Image, &article.AuthorID, &article.CreatedAt, &article.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
 	return article, nil
 }
 

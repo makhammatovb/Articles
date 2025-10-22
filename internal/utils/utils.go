@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 )
+
 // JSON format representor, keys are strings, values can be any type
 type Envelope map[string]interface{}
 
