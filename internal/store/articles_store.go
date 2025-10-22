@@ -120,7 +120,6 @@ func (pg *PostgresArticleStore) UpdateArticle(article *Article) error {
 	return tx.Commit()
 }
 
-
 func (pg *PostgresArticleStore) DeleteArticle(id int64) error {
 	query := `
 	DELETE FROM articles WHERE id = $1;
