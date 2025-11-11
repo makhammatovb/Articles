@@ -18,6 +18,7 @@ type Application struct {
 	Logger         *log.Logger
 	ArticleHandler *api.ArticleHandler
 	UserHandler    *api.UserHandler
+	ReviewHandler  *api.ReviewHandler
 	DB             *sql.DB
 }
 
@@ -35,13 +36,16 @@ func NewApplication() (*Application, error) {
 	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
 	articleStore := store.NewPostgresArticleStore(pgDB)
 	userStore := store.NewPostgresUserStore(pgDB)
+	reviewStore := store.NewPostgresReviewStore(pgDB)
 	// Initialize handlers from api package, creates a new instance of ArticleHandler and returns pointer to it
 	ArticleHandler := api.NewArticleHandler(articleStore, logger)
 	UserHandler := api.NewUserHandler(userStore, logger)
+	ReviewHandler := api.NewReviewHandler(reviewStore, logger)
 	app := &Application{
 		Logger:         logger,
 		ArticleHandler: ArticleHandler,
 		UserHandler:    UserHandler,
+		ReviewHandler:  ReviewHandler,
 		DB:             pgDB,
 	}
 	return app, nil

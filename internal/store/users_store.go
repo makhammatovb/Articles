@@ -2,14 +2,44 @@ package store
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
+	"golang.org/x/crypto/bcrypt"
 )
+
+type password struct {
+	plainText *string
+	hash []byte
+}
+
+func (p *password) Set(plainPasswordText string) error {
+	hash, err := bcrypt.GenerateFromPassword([]byte(plainPasswordText), 12)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+	p.plainText = &plainPasswordText
+	p.hash = hash
+	return nil
+}
+
+func (p *password) Matches(plaintextPassword string) (bool, error) {
+	err := bcrypt.CompareHashAndPassword(p.hash, []byte(plaintextPassword))
+	if err != nil {
+		switch {
+		case errors.Is(err, bcrypt.ErrMismatchedHashAndPassword):
+			return false, nil
+		default:
+			return false, fmt.Errorf("failed to compare passwords: %w", err)
+		}
+	}
+	return true, nil
+}
 
 type User struct {
 	ID              int            `json:"id"`
 	Email           string         `json:"email"`
-	PasswordHash    string         `json:"password_hash"`
+	PasswordHash    password         `json:"-"`
 	FirstName	    string         `json:"firstname"`
 	LastName	    string         `json:"lastname"`
 	CreatedAt       time.Time         `json:"created_at"`
@@ -25,41 +55,30 @@ func NewPostgresUserStore(db *sql.DB) *PostgresUserStore {
 }
 
 type UserStore interface {
-	CreateUser(user *User) (*User, error)
+	CreateUser(user *User) error
 	GetUserByID(id int64) (*User, error)
 	UpdateUser(user *User) error
 	DeleteUser(id int64) error
 }
 
-func (pg *PostgresUserStore) CreateUser(user *User) (*User, error) {
-	tx, err := pg.db.Begin()
-	if err != nil {
-		return nil, fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-
+func (pg *PostgresUserStore) CreateUser(user *User) error {
 	query := 
 	`INSERT INTO users (email, password_hash, firstname, lastname, created_at, updated_at)
 	VALUES ($1, $2, $3, $4, NOW(), NOW()) RETURNING id;
 	`
-	err = tx.QueryRow(query, user.Email, user.PasswordHash, user.FirstName, user.LastName).Scan(&user.ID)
+	err := pg.db.QueryRow(query, user.Email, user.PasswordHash.hash, user.FirstName, user.LastName).Scan(&user.ID)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	err = tx.Commit()
-	if err != nil {
-		return nil, err
-	}
-	return user, nil
+	return nil
 }
 
 func (pg *PostgresUserStore) GetUserByID(id int64) (*User, error) {
-	user := &User{}
+	user := &User{PasswordHash: password{}}
 	query := `
 	SELECT id, email, password_hash, firstname, lastname, created_at, updated_at from users where id = $1;
 	`
-	row := pg.db.QueryRow(query, id)
-	err := row.Scan(&user.ID, &user.Email, &user.PasswordHash, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt)
+	err := pg.db.QueryRow(query, id).Scan(&user.ID, &user.Email, &user.PasswordHash, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -70,16 +89,11 @@ func (pg *PostgresUserStore) GetUserByID(id int64) (*User, error) {
 }
 
 func (pg *PostgresUserStore) UpdateUser(user *User) error {
-	tx, err := pg.db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
 	query := `
 	UPDATE users SET email = $1, password_hash = $2, firstname = $3, lastname = $4, updated_at = NOW()
 	WHERE id = $5;
 	`
-	result, err := tx.Exec(query, user.Email, user.PasswordHash, user.FirstName, user.LastName, user.ID)
+	result, err := pg.db.Exec(query, user.Email, user.PasswordHash, user.FirstName, user.LastName, user.ID)
 	if err != nil {
 		return err
 	}
@@ -89,10 +103,6 @@ func (pg *PostgresUserStore) UpdateUser(user *User) error {
 	}
 	if rowsAffected == 0 {
 		return fmt.Errorf("user with ID %d not found", user.ID)
-	}
-	err = tx.Commit()
-	if err != nil {
-		return err
 	}
 	return nil
 }

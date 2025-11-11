@@ -2,13 +2,22 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 
 	"github.com/makhammatovb/Articles/internal/store"
 	"github.com/makhammatovb/Articles/internal/utils"
 )
+
+type registerUserRequest struct {
+	FirstName string `json:"firstname"`
+	LastName  string `json:"lastname"`
+	Email     string `json:"email"`
+	Password  string `json:"password"`
+}
 
 // UserHandler struct to handle User-related requests for future use
 type UserHandler struct {
@@ -24,11 +33,73 @@ func NewUserHandler(userStore store.UserStore, logger *log.Logger) *UserHandler 
 	}
 }
 
-// HandleGetUserByID handles the GET request to retrieve a User by its ID.
-// wh *UserHandler is the receiver
-// *UserHandler means the method operates on a pointer to UserHandler
-// w http.ResponseWriter is used to write the response back to the client
-// r *http.Request represents the incoming HTTP request
+func (uh *UserHandler) validateRegisterRequest(req *registerUserRequest) error {
+	if req.Email == "" {
+		return errors.New("missing required fields")
+	}
+
+	if len(req.Email) > 255 {
+		return errors.New("email is too long")
+	}
+
+	emailRegex := regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,4}$`)
+	if !emailRegex.MatchString(req.Email) {
+		return errors.New("invalid email format")
+	}
+
+	if req.Password == "" {
+		return errors.New("missing required fields")
+	}
+
+	return nil
+}
+
+func (uh *UserHandler) HandleRegisterUser(w http.ResponseWriter, r *http.Request) {
+	var req registerUserRequest
+
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		uh.logger.Println("error while decoding user:", err)
+		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Invalid request payload"})
+		return
+	}
+
+	err = uh.validateRegisterRequest(&req)
+	if err != nil {
+		uh.logger.Println("error while validating user:", err)
+		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": err.Error()})
+		return
+	}
+
+	user := &store.User{
+		Email: req.Email,
+	}
+
+	if req.FirstName != "" {
+		user.FirstName = req.FirstName
+	}
+
+	if req.LastName != "" {
+		user.LastName = req.LastName
+	}
+
+	err = user.PasswordHash.Set(req.Password)
+	if err != nil {
+		uh.logger.Println("error while hashing password:", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
+		return
+	}
+
+	err = uh.userStore.CreateUser(user)
+	if err != nil {
+		uh.logger.Println("error while creating user:", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
+		return
+	}
+	utils.WriteJSON(w, http.StatusCreated, utils.Envelope{"user": user})
+
+}
+
 func (uh *UserHandler) HandleGetUserByID(w http.ResponseWriter, r *http.Request) {
 
 	// retrieves the user ID from the URL parameters
@@ -46,26 +117,6 @@ func (uh *UserHandler) HandleGetUserByID(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"user": user})
-}
-
-// HandleCreateUser handles the POST request to create a new user.
-func (uh *UserHandler) HandleCreateUser(w http.ResponseWriter, r *http.Request) {
-	var user store.User
-	err := json.NewDecoder(r.Body).Decode(&user)
-	if err != nil {
-		uh.logger.Println("Decoding error:", err)
-		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Invalid request payload"})
-		return
-	}
-
-	createdUser, err := uh.userStore.CreateUser(&user)
-	if err != nil {
-		uh.logger.Println("Error creating user:", err)
-		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
-		return
-	}
-
-	utils.WriteJSON(w, http.StatusCreated, utils.Envelope{"user": createdUser})
 }
 
 func (uh *UserHandler) HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
@@ -105,9 +156,6 @@ func (uh *UserHandler) HandleUpdateUser(w http.ResponseWriter, r *http.Request) 
 	}
 	if updatedUserRequest.Email != nil {
 		existingUser.Email = *updatedUserRequest.Email
-	}
-	if updatedUserRequest.PasswordHash != nil {
-		existingUser.PasswordHash = *updatedUserRequest.PasswordHash
 	}
 	err = uh.userStore.UpdateUser(existingUser)
 	if err != nil {

@@ -104,7 +104,7 @@ func TestCreateArticle(t *testing.T) {
 			assert.Equal(t, tt.article.Description, createdArticle.Description)
 			assert.Equal(t, tt.article.Image, createdArticle.Image)
 			assert.Equal(t, tt.article.AuthorID, createdArticle.AuthorID)
-			
+
 			assert.NotZero(t, createdArticle.ID)
 			assert.Equal(t, len(tt.article.Paraghraps), len(createdArticle.Paraghraps))
 			
@@ -121,9 +121,9 @@ func TestCreateArticle(t *testing.T) {
 func TestCreateUser(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
-	
+
 	store := NewPostgresUserStore(db)
-	
+
 	tests := []struct {
 		name    string
 		user    *User
@@ -132,37 +132,37 @@ func TestCreateUser(t *testing.T) {
 		{
 			name: "Valid User",
 			user: &User{
-				Email:        "c2KQw@example.com",
-				PasswordHash: "hashed_password",
-				FirstName:    "John",
-				LastName:     "Doe",
+				Email:     "c2KQw@example.com",
+				FirstName: "John",
+				LastName:  "Doe",
 			},
 			wantErr: false,
 		},
 		{
 			name: "Invalid User",
 			user: &User{
-				Email:        "invalid_email",
-				PasswordHash: "hashed_password",
-				FirstName:    "John",
-				LastName:     "Doe",
+				Email:     "invalid_email",
+				FirstName: "John",
+				LastName:  "Doe",
 			},
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			createdUser, err := store.CreateUser(tt.user)
+			if err := tt.user.PasswordHash.Set("test_password"); err != nil {
+				t.Fatalf("Failed to set password: %v", err)
+			}
+			err := store.CreateUser(tt.user)
 			if tt.wantErr {
 				assert.Error(t, err, "Expected error but got none")
 				return
 			}
 			require.NoError(t, err)
-			assert.Equal(t, tt.user.Email, createdUser.Email)
-			assert.Equal(t, tt.user.PasswordHash, createdUser.PasswordHash)
-			assert.Equal(t, tt.user.FirstName, createdUser.FirstName)
-			assert.Equal(t, tt.user.LastName, createdUser.LastName)
-			assert.NotZero(t, createdUser.ID)
+			assert.NotZero(t, tt.user.ID)
+			match, err := tt.user.PasswordHash.Matches("test_password")
+			require.NoError(t, err)
+			assert.True(t, match)
 		})
 	}
 }

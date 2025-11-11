@@ -16,8 +16,14 @@ func SetupRoutes(app *app.Application) *chi.Mux {
 	r.Delete("/articles/{id}/", app.ArticleHandler.HandleDeleteArticle) // checked
 	// users
 	r.Get("/users/{id}", app.UserHandler.HandleGetUserByID) // checked
-	r.Post("/users/", app.UserHandler.HandleCreateUser) // checked
+	r.Post("/users/", app.UserHandler.HandleRegisterUser) // checked
 	r.Put("/users/{id}/", app.UserHandler.HandleUpdateUser) // checked
 	r.Delete("/users/{id}/", app.UserHandler.HandleDeleteUser) // checked
+
+	//reviews
+	r.Get("/reviews/{id}", app.ReviewHandler.HandleGetReviewByID) // checked
+	r.Post("/reviews/", app.ReviewHandler.HandleCreateReview) // checked
+	r.Put("/reviews/{id}/", app.ReviewHandler.HandleUpdateReview) // checked
+	r.Delete("/reviews/{id}/", app.ReviewHandler.HandleDeleteReview) // checked
 	return r
 }

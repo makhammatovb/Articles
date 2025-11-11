@@ -39,6 +39,8 @@ type ArticleStore interface {
 	GetArticleByID(id int64) (*Article, error)
 	UpdateArticle(article *Article) error
 	DeleteArticle(id int64) error
+	ArticleExists(articleID int64) (bool, error)
+	GetArticleAuthorID(articleID int64) (int64, error)
 }
 
 func (pg *PostgresArticleStore) CreateArticle(article *Article) (*Article, error) {
@@ -147,4 +149,27 @@ func (pg *PostgresArticleStore) DeleteArticle(id int64) error {
 		return fmt.Errorf("article with ID %d not found", id)
 	}
 	return nil
+}
+
+func (pg *PostgresArticleStore) ArticleExists(articleID int64) (bool, error) {
+	var exists bool
+	query := `SELECT EXISTS(SELECT 1 FROM articles WHERE id = $1)`
+	err := pg.db.QueryRow(query, articleID).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
+func (pg *PostgresArticleStore) GetArticleAuthorID(articleID int64) (int64, error) {
+	var authorID int64
+	query := `SELECT author_id FROM articles WHERE id = $1`
+	err := pg.db.QueryRow(query, articleID).Scan(&authorID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return 0, fmt.Errorf("article not found")
+		}
+		return 0, err
+	}
+	return authorID, nil
 }
