@@ -40,7 +40,7 @@ func NewApplication() (*Application, error) {
 	// Initialize handlers from api package, creates a new instance of ArticleHandler and returns pointer to it
 	ArticleHandler := api.NewArticleHandler(articleStore, logger)
 	UserHandler := api.NewUserHandler(userStore, logger)
-	ReviewHandler := api.NewReviewHandler(reviewStore, logger)
+	ReviewHandler := api.NewReviewHandler(reviewStore, articleStore, logger)
 	app := &Application{
 		Logger:         logger,
 		ArticleHandler: ArticleHandler,

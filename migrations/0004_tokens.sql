@@ -2,7 +2,7 @@
 -- +goose StatementBegin
 
 CREATE TABLE IF NOT EXISTS tokens (
-    ash BYTEA PRIMARY KEY,
+    hash BYTEA PRIMARY KEY,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     expiry TIMESTAMP(0) WITH TIME ZONE NOT NULL,
     scope TEXT NOT NULL
