@@ -31,10 +31,15 @@ func (rh *ReviewHandler) HandleGetReviewByID(w http.ResponseWriter, r *http.Requ
 		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Invalid review ID"})
 		return
 	}
+	
 	review, err := rh.reviewStore.GetReviewByID(reviewID)
 	if err != nil {
 		rh.logger.Println("Error getting review by ID:", err)
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
+		return
+	}
+	if review == nil {
+		http.NotFound(w, r)
 		return
 	}
 	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"review": review})
@@ -115,6 +120,13 @@ func (rh *ReviewHandler) HandleUpdateReview(w http.ResponseWriter, r *http.Reque
 		rh.logger.Println("error while decoding review:", err)
 		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Invalid request payload"})
 		return
+	}
+	if updatedReviewRequest.Stars != nil {
+		if *updatedReviewRequest.Stars < 1 || *updatedReviewRequest.Stars > 5 {
+			utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Stars must be between 1 and 5"})
+			return
+		}
+		existingReview.Stars = *updatedReviewRequest.Stars
 	}
 	if updatedReviewRequest.Stars != nil {
 		existingReview.Stars = *updatedReviewRequest.Stars
