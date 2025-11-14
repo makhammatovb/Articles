@@ -5,12 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
 type password struct {
 	plainText *string
-	hash []byte
+	hash      []byte
 }
 
 func (p *password) Set(plainPasswordText string) error {
@@ -37,13 +38,13 @@ func (p *password) Matches(plaintextPassword string) (bool, error) {
 }
 
 type User struct {
-	ID              int            `json:"id"`
-	Email           string         `json:"email"`
-	PasswordHash    password         `json:"-"`
-	FirstName	    string         `json:"firstname"`
-	LastName	    string         `json:"lastname"`
-	CreatedAt       time.Time         `json:"created_at"`
-	UpdatedAt       time.Time         `json:"updated_at"`
+	ID           int       `json:"id"`
+	Email        string    `json:"email"`
+	PasswordHash password  `json:"-"`
+	FirstName    string    `json:"firstname"`
+	LastName     string    `json:"lastname"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type PostgresUserStore struct {
@@ -57,13 +58,14 @@ func NewPostgresUserStore(db *sql.DB) *PostgresUserStore {
 type UserStore interface {
 	CreateUser(user *User) error
 	GetUserByID(id int64) (*User, error)
+	GetUserByEmail(username string) (*User, error)
 	UpdateUser(user *User) error
 	DeleteUser(id int64) error
 }
 
 func (pg *PostgresUserStore) CreateUser(user *User) error {
-	query := 
-	`INSERT INTO users (email, password_hash, firstname, lastname, created_at, updated_at)
+	query :=
+		`INSERT INTO users (email, password_hash, firstname, lastname, created_at, updated_at)
 	VALUES ($1, $2, $3, $4, NOW(), NOW()) RETURNING id;
 	`
 	err := pg.db.QueryRow(query, user.Email, user.PasswordHash.hash, user.FirstName, user.LastName).Scan(&user.ID)
@@ -79,6 +81,21 @@ func (pg *PostgresUserStore) GetUserByID(id int64) (*User, error) {
 	SELECT id, email, password_hash, firstname, lastname, created_at, updated_at from users where id = $1;
 	`
 	err := pg.db.QueryRow(query, id).Scan(&user.ID, &user.Email, &user.PasswordHash, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return user, nil
+}
+
+func (pg *PostgresUserStore) GetUserByEmail(email string) (*User, error) {
+	user := &User{PasswordHash: password{}}
+	query := `
+	SELECT id, email, password_hash, firstname, lastname, created_at, updated_at from users where email = $1;
+	`
+	err := pg.db.QueryRow(query, email).Scan(&user.ID, &user.Email, &user.PasswordHash.hash, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil

@@ -25,5 +25,8 @@ func SetupRoutes(app *app.Application) *chi.Mux {
 	r.Post("/reviews/", app.ReviewHandler.HandleCreateReview) // checked
 	r.Put("/reviews/{id}/", app.ReviewHandler.HandleUpdateReview) // checked
 	r.Delete("/reviews/{id}/", app.ReviewHandler.HandleDeleteReview) // checked
+
+	// tokens
+	r.Post("/tokens/", app.TokenHandler.HandleCreateToken)
 	return r
 }
