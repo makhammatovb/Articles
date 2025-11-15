@@ -25,13 +25,14 @@ func GenerateToken(userID int64, ttl time.Duration, scope string) (*Token, error
 		Expiry: time.Now().Add(ttl),
 		Scope:  scope,
 	}
-
+	// creates a byte slice of 32 empty bytes
 	emptyBytes := make([]byte, 32)
+	// fills the slice with secure random data
 	_, err := rand.Read(emptyBytes)
 	if err != nil {
 		return nil, err
 	}
-
+	// encodes the 32 random bytes into a Base32 String
 	token.PlainText = base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(emptyBytes)
 	hash := sha256.Sum256([]byte(token.PlainText))
 	token.Hash = hash[:]
