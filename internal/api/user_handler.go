@@ -71,6 +71,19 @@ func (uh *UserHandler) HandleRegisterUser(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	existingUser, err := uh.userStore.GetUserByEmail(req.Email)
+	if err != nil {
+		uh.logger.Println("error while checking existing user:", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
+		return
+	}
+
+	if existingUser != nil {
+		uh.logger.Println("user with this email already exists:", req.Email)
+		utils.WriteJSON(w, http.StatusConflict, utils.Envelope{"error": "User with this email already exists"})
+		return
+	}
+
 	user := &store.User{
 		Email: req.Email,
 	}
@@ -97,7 +110,6 @@ func (uh *UserHandler) HandleRegisterUser(w http.ResponseWriter, r *http.Request
 		return
 	}
 	utils.WriteJSON(w, http.StatusCreated, utils.Envelope{"user": user})
-
 }
 
 func (uh *UserHandler) HandleGetUserByID(w http.ResponseWriter, r *http.Request) {
