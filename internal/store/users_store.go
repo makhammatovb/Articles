@@ -15,6 +15,7 @@ type password struct {
 }
 
 func (p *password) Set(plainPasswordText string) error {
+	// 12 is cost factor
 	hash, err := bcrypt.GenerateFromPassword([]byte(plainPasswordText), 12)
 	if err != nil {
 		return fmt.Errorf("failed to hash password: %w", err)

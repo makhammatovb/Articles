@@ -51,6 +51,18 @@ func (uh *UserHandler) validateRegisterRequest(req *registerUserRequest) error {
 		return errors.New("missing required fields")
 	}
 
+	existingUser, err := uh.userStore.GetUserByEmail(req.Email)
+	if err != nil {
+		return err
+	}
+	if existingUser != nil {
+		return errors.New("user with this email already exists")
+	}
+
+	if len(req.Password) < 6 {
+		return errors.New("password must be at least 6 characters long")
+	}
+
 	return nil
 }
 
