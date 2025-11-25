@@ -37,3 +37,11 @@ func ReadIDParam(r *http.Request) (int64, error) {
 	}
 	return id, nil
 }
+
+func ReadTokenParam(r *http.Request) (string, error) {
+    token := chi.URLParam(r, "token")
+    if token == "" {
+        return "", http.ErrNoLocation
+    }
+    return token, nil
+}

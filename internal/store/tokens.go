@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"time"
+
 	"github.com/makhammatovb/Articles/internal/tokens"
 )
 
@@ -18,6 +19,8 @@ type TokenStore interface {
 	Insert(token *tokens.Token) error
 	CreateNewToken(userID int64, ttl time.Duration, scope string) (*tokens.Token, error)
 	DeleteAllTokensForUser(userID int64, scope string) error
+	GetToken(hash string, scope string) (*tokens.Token, error)
+	DeleteToken(hash string, scope string) error
 }
 
 func (t *PostgresTokenStore) CreateNewToken(userID int64, ttl time.Duration, scope string) (*tokens.Token, error) {
@@ -49,6 +52,32 @@ func (t *PostgresTokenStore) DeleteAllTokensForUser(userID int64, scope string) 
 	DELETE FROM tokens WHERE user_id = $1 AND scope = $2;
 	`
 	_, err := t.db.Exec(query, userID, scope)
+	if err != nil {
+		return err
+	}
+	return err
+}
+
+func (t *PostgresTokenStore) GetToken(hash string, scope string) (*tokens.Token, error) {
+	token := &tokens.Token{}
+	query := `
+	SELECT hash, user_id, expiry, scope FROM tokens WHERE hash = $1 AND scope = $2;
+	`
+	err := t.db.QueryRow(query, hash, scope).Scan(&token.Hash, &token.UserID, &token.Expiry, &token.Scope)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return token, nil
+}
+
+func (t *PostgresTokenStore) DeleteToken(hash string, scope string) error {
+	query := `
+	DELETE FROM tokens WHERE hash = $1 AND scope = $2;
+	`
+	_, err := t.db.Exec(query, hash, scope)
 	if err != nil {
 		return err
 	}

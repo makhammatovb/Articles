@@ -59,9 +59,10 @@ func NewPostgresUserStore(db *sql.DB) *PostgresUserStore {
 type UserStore interface {
 	CreateUser(user *User) error
 	GetUserByID(id int64) (*User, error)
-	GetUserByEmail(username string) (*User, error)
+	GetUserByEmail(email string) (*User, error)
 	UpdateUser(user *User) error
 	DeleteUser(id int64) error
+	UpdatePassword(userID int64, newPassword string) error
 }
 
 func (pg *PostgresUserStore) CreateUser(user *User) error {
@@ -81,7 +82,7 @@ func (pg *PostgresUserStore) GetUserByID(id int64) (*User, error) {
 	query := `
 	SELECT id, email, password_hash, firstname, lastname, created_at, updated_at from users where id = $1;
 	`
-	err := pg.db.QueryRow(query, id).Scan(&user.ID, &user.Email, &user.PasswordHash, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt)
+	err := pg.db.QueryRow(query, id).Scan(&user.ID, &user.Email, &user.PasswordHash.hash, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -111,7 +112,7 @@ func (pg *PostgresUserStore) UpdateUser(user *User) error {
 	UPDATE users SET email = $1, password_hash = $2, firstname = $3, lastname = $4, updated_at = NOW()
 	WHERE id = $5;
 	`
-	result, err := pg.db.Exec(query, user.Email, user.PasswordHash, user.FirstName, user.LastName, user.ID)
+	result, err := pg.db.Exec(query, user.Email, user.PasswordHash.hash, user.FirstName, user.LastName, user.ID)
 	if err != nil {
 		return err
 	}
@@ -142,3 +143,26 @@ func (pg *PostgresUserStore) DeleteUser(id int64) error {
 	}
 	return nil
 }
+
+func (pg *PostgresUserStore) UpdatePassword(userID int64, newPassword string) error {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), 12)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+	query := `
+	UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2;
+	`
+	result, err := pg.db.Exec(query, hashedPassword, userID)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("user with ID %d not found", userID)
+	}
+	return nil
+}
+ 
