@@ -90,8 +90,8 @@ func (h *TokenHandler) GenerateResetPasswordToken(w http.ResponseWriter, r *http
 	
 	user, err := h.userStore.GetUserByEmail(req.Email)
 	if err != nil {
-		h.logger.Println("Error reading user ID:", err)
-		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Invalid user ID"})
+		h.logger.Println("Error reading user email:", err)
+		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Invalid user email"})
 		return
 	}
 
