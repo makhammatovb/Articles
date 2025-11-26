@@ -95,7 +95,7 @@ func (h *TokenHandler) GenerateResetPasswordToken(w http.ResponseWriter, r *http
 		return
 	}
 
-	token, err := h.tokenStore.CreateNewToken(int64(user.ID), 60*time.Minute, "reset-password")
+	token, err := h.tokenStore.CreateNewToken(int64(user.ID), 10*time.Minute, "reset-password")
 	if err != nil {
 		h.logger.Println("error while creating reset token:", err)
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
