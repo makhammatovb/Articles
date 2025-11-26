@@ -135,7 +135,7 @@ func (h *TokenHandler) HandleResetPassword(w http.ResponseWriter, r *http.Reques
 	}
 	
 	tokenData, err := h.tokenStore.GetToken(token, "reset-password")
-	if err != nil || tokenData == nil {
+	if err != nil || tokenData == nil  || tokenData.Expiry.Before(time.Now()) {
 		h.logger.Println("Error retrieving reset token:", err)
 		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Invalid or expired reset token"})
 		return
