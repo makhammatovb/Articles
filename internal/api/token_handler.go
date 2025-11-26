@@ -141,7 +141,7 @@ func (h *TokenHandler) HandleResetPassword(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	user, err := h.userStore.GetUserByID(tokenData.UserID)
+	user, err := h.userStore.GetUserWithPasswordByID(tokenData.UserID)
     if err != nil {
         h.logger.Println("Error getting user by ID:", err)
         utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})

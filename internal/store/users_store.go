@@ -60,6 +60,7 @@ type UserStore interface {
 	CreateUser(user *User) error
 	GetUserByID(id int64) (*User, error)
 	GetUserByEmail(email string) (*User, error)
+	GetUserWithPasswordByID(id int64) (*User, error)
 	UpdateUser(user *User) error
 	DeleteUser(id int64) error
 	UpdatePassword(userID int64, newPassword string) error
@@ -80,9 +81,9 @@ func (pg *PostgresUserStore) CreateUser(user *User) error {
 func (pg *PostgresUserStore) GetUserByID(id int64) (*User, error) {
 	user := &User{PasswordHash: password{}}
 	query := `
-	SELECT id, email, password_hash, firstname, lastname, created_at, updated_at from users where id = $1;
+	SELECT id, email, firstname, lastname, created_at, updated_at from users where id = $1;
 	`
-	err := pg.db.QueryRow(query, id).Scan(&user.ID, &user.Email, &user.PasswordHash.hash, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt)
+	err := pg.db.QueryRow(query, id).Scan(&user.ID, &user.Email, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -95,9 +96,24 @@ func (pg *PostgresUserStore) GetUserByID(id int64) (*User, error) {
 func (pg *PostgresUserStore) GetUserByEmail(email string) (*User, error) {
 	user := &User{PasswordHash: password{}}
 	query := `
-	SELECT id, email, password_hash, firstname, lastname, created_at, updated_at from users where email = $1;
+	SELECT id, email, firstname, lastname, created_at, updated_at from users where email = $1;
 	`
-	err := pg.db.QueryRow(query, email).Scan(&user.ID, &user.Email, &user.PasswordHash.hash, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt)
+	err := pg.db.QueryRow(query, email).Scan(&user.ID, &user.Email, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return user, nil
+}
+
+func (pg *PostgresUserStore) GetUserWithPasswordByID(id int64) (*User, error) {
+	user := &User{PasswordHash: password{}}
+	query := `
+	SELECT id, email, password_hash, firstname, lastname, created_at, updated_at from users where id = $1;
+	`
+	err := pg.db.QueryRow(query, id).Scan(&user.ID, &user.Email, &user.PasswordHash.hash, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
