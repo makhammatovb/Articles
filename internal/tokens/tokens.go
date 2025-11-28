@@ -17,6 +17,7 @@ type Token struct {
 
 const (
 	ScopeAuth = "authentication"
+	ScopeResetPassword = "reset-password"
 )
 
 func GenerateToken(userID int64, ttl time.Duration, scope string) (*Token, error) {

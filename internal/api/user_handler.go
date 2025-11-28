@@ -234,7 +234,7 @@ func (uh *UserHandler) HandleUpdatePassword(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	oldUserPassword, err := uh.userStore.GetUserByID(userID)
+	oldUserPassword, err := uh.userStore.GetUserWithPasswordByID(userID)
 	if err != nil {
 		uh.logger.Println("Error getting user by ID:", err)
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})

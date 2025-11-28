@@ -1,6 +1,7 @@
 package api
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -43,9 +44,14 @@ func (h *TokenHandler) HandleCreateToken(w http.ResponseWriter, r *http.Request)
 	}
 
 	user, err := h.userStore.GetUserByEmail(req.Email)
-	if err != nil || user == nil {
+	if err != nil{
 		h.logger.Println("error while getting user:", err)
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
+		return
+	}
+
+	if user == nil {
+		utils.WriteJSON(w, http.StatusUnauthorized, utils.Envelope{"error": "Invalid credentials"})
 		return
 	}
 
@@ -87,7 +93,7 @@ func (h *TokenHandler) GenerateResetPasswordToken(w http.ResponseWriter, r *http
 		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Email is required"})
 		return
 	}
-	
+
 	user, err := h.userStore.GetUserByEmail(req.Email)
 	if err != nil {
 		h.logger.Println("Error reading user email:", err)
@@ -95,7 +101,12 @@ func (h *TokenHandler) GenerateResetPasswordToken(w http.ResponseWriter, r *http
 		return
 	}
 
-	token, err := h.tokenStore.CreateNewToken(int64(user.ID), 10*time.Minute, "reset-password")
+	if user == nil {
+		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "No user found with the provided email"})
+		return
+	}
+
+	token, err := h.tokenStore.CreateNewToken(int64(user.ID), 10*time.Minute, tokens.ScopeResetPassword)
 	if err != nil {
 		h.logger.Println("error while creating reset token:", err)
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
@@ -105,18 +116,20 @@ func (h *TokenHandler) GenerateResetPasswordToken(w http.ResponseWriter, r *http
 }
 
 func (h *TokenHandler) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
-	token, err := utils.ReadTokenParam(r)
-    if token == "" {
-        utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Reset token is required"})
-        return
-    }
+	plainText, err := utils.ReadTokenParam(r)
+	if plainText == "" {
+		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Reset token is required"})
+		return
+	}
 	if err != nil {
 		h.logger.Println("Error reading reset token:", err)
 		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Invalid reset token"})
 		return
 	}
+	hash := sha256.Sum256([]byte(plainText))
+	token := hash[:]
 	var req struct {
-		NewPassword string `json:"new_password"`
+		NewPassword     string `json:"new_password"`
 		ConfirmPassword string `json:"confirm_password"`
 	}
 	err = json.NewDecoder(r.Body).Decode(&req)
@@ -126,45 +139,58 @@ func (h *TokenHandler) HandleResetPassword(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	if req.NewPassword == "" || req.ConfirmPassword == "" {
-        utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "New password and confirmation are required"})
-        return
-    }
+		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "New password and confirmation are required"})
+		return
+	}
 	if req.NewPassword != req.ConfirmPassword {
 		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Passwords do not match"})
 		return
 	}
-	
-	tokenData, err := h.tokenStore.GetToken(token, "reset-password")
-	if err != nil || tokenData == nil  || tokenData.Expiry.Before(time.Now()) {
+
+	// bu xato (tokenData nil bolgan case alohida handle qilindi)
+	tokenData, err := h.tokenStore.GetToken(token)
+	if err != nil {
 		h.logger.Println("Error retrieving reset token:", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
+		return
+	}
+
+	if tokenData == nil || tokenData.Expiry.Before(time.Now()) {
 		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Invalid or expired reset token"})
 		return
 	}
 
-	user, err := h.userStore.GetUserWithPasswordByID(tokenData.UserID)
-    if err != nil {
-        h.logger.Println("Error getting user by ID:", err)
-        utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
-        return
-    }
+	// KERAK EMAS || NOTO'G'RI (user nil bo'lishi handle qilindi va userStore.GetUserByID ishlatildi)
+	user, err := h.userStore.GetUserByID(tokenData.UserID)
+	if err != nil {
+		h.logger.Println("Error getting user by ID:", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
+		return
+	}
+
+	if user == nil {
+		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "No user found for the provided token"})
+		return
+	}
 
 	err = user.PasswordHash.Set(req.NewPassword)
-    if err != nil {
-        h.logger.Println("Error hashing new password:", err)
-        utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
-        return
-    }
+	if err != nil {
+		h.logger.Println("Error hashing new password:", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
+		return
+	}
 
-    err = h.userStore.UpdateUser(user)
-    if err != nil {
-        h.logger.Println("Error updating password:", err)
-        utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
-        return
-    }
+	err = h.userStore.UpdateUser(user)
+	if err != nil {
+		h.logger.Println("Error updating password:", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
+		return
+	}
 
-	err = h.tokenStore.DeleteToken(token, "reset-password")
-    if err != nil {
-        h.logger.Println("Error deleting used token:", err)
-    }
-    utils.WriteJSON(w, http.StatusOK, utils.Envelope{"message": "Password reset successfully"})
+	// DeleteAllTokensForUser ishlatildi DeleteToken ni o'rniga
+	err = h.tokenStore.DeleteAllTokensForUser(int64(user.ID), tokens.ScopeResetPassword)
+	if err != nil {
+		h.logger.Println("Error deleting used token:", err)
+	}
+	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"message": "Password reset successfully"})
 }

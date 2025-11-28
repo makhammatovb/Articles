@@ -26,6 +26,7 @@ func (p *password) Set(plainPasswordText string) error {
 }
 
 func (p *password) Matches(plaintextPassword string) (bool, error) {
+	fmt.Println("Comparing password hash:", p.hash , "with plaintext password:", plaintextPassword)
 	err := bcrypt.CompareHashAndPassword(p.hash, []byte(plaintextPassword))
 	if err != nil {
 		switch {
@@ -96,9 +97,9 @@ func (pg *PostgresUserStore) GetUserByID(id int64) (*User, error) {
 func (pg *PostgresUserStore) GetUserByEmail(email string) (*User, error) {
 	user := &User{PasswordHash: password{}}
 	query := `
-	SELECT id, email, firstname, lastname, created_at, updated_at from users where email = $1;
+	SELECT id, email, password_hash, firstname, lastname, created_at, updated_at from users where email = $1;
 	`
-	err := pg.db.QueryRow(query, email).Scan(&user.ID, &user.Email, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt)
+	err := pg.db.QueryRow(query, email).Scan(&user.ID, &user.Email, &user.PasswordHash.hash, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -108,6 +109,7 @@ func (pg *PostgresUserStore) GetUserByEmail(email string) (*User, error) {
 	return user, nil
 }
 
+// bu kerak emas (faqat password change da ishlatildi)
 func (pg *PostgresUserStore) GetUserWithPasswordByID(id int64) (*User, error) {
 	user := &User{PasswordHash: password{}}
 	query := `
