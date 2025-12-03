@@ -7,6 +7,7 @@ import (
 
 	"github.com/makhammatovb/Articles/internal/store"
 	"github.com/makhammatovb/Articles/internal/utils"
+	"github.com/makhammatovb/Articles/internal/middleware"
 )
 
 type ReviewHandler struct {
@@ -109,6 +110,16 @@ func (rh *ReviewHandler) HandleUpdateReview(w http.ResponseWriter, r *http.Reque
 	}
 	if existingReview == nil {
 		http.NotFound(w, r)
+		return
+	}
+	user, err := middleware.GetUser(r)
+	if err != nil {
+		rh.logger.Println("Error getting user from context:", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
+		return
+	}
+	if user.ID != int(existingReview.AuthorID) {
+		utils.WriteJSON(w, http.StatusForbidden, utils.Envelope{"error": "You are not the owner of this review"})
 		return
 	}
 	var updatedReviewRequest struct {

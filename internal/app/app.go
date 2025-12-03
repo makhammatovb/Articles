@@ -9,6 +9,7 @@ import (
 
 	"github.com/makhammatovb/Articles/internal/api"
 	"github.com/makhammatovb/Articles/internal/store"
+	"github.com/makhammatovb/Articles/internal/middleware"
 	"github.com/makhammatovb/Articles/migrations"
 )
 
@@ -20,7 +21,8 @@ type Application struct {
 	UserHandler    *api.UserHandler
 	ReviewHandler  *api.ReviewHandler
 	TokenHandler   *api.TokenHandler
-	DB             *sql.DB
+	Middleware     middleware.UserMiddleware
+	DB *sql.DB
 }
 
 // NewApplication creates a new instance of Application
@@ -39,17 +41,22 @@ func NewApplication() (*Application, error) {
 	userStore := store.NewPostgresUserStore(pgDB)
 	reviewStore := store.NewPostgresReviewStore(pgDB)
 	tokenStore := store.NewPostgresTokenStore(pgDB)
+	userMiddleware := middleware.UserMiddleware{
+		UserStore: userStore,
+	}
 	// Initialize handlers from api package, creates a new instance of ArticleHandler and returns pointer to it
 	articleHandler := api.NewArticleHandler(articleStore, logger)
 	userHandler := api.NewUserHandler(userStore, logger)
 	reviewHandler := api.NewReviewHandler(reviewStore, articleStore, logger)
 	tokenHandler := api.NewTokenHandler(tokenStore, userStore, logger)
+
 	app := &Application{
 		Logger:         logger,
 		ArticleHandler: articleHandler,
 		UserHandler:    userHandler,
 		ReviewHandler:  reviewHandler,
 		TokenHandler:   tokenHandler,
+		Middleware:     userMiddleware,
 		DB:             pgDB,
 	}
 	return app, nil

@@ -6,6 +6,7 @@ import (
 	"log"
 	"github.com/makhammatovb/Articles/internal/store"
 	"github.com/makhammatovb/Articles/internal/utils"
+	"github.com/makhammatovb/Articles/internal/middleware"
 )
 
 // ArticleHandler struct to handle Article-related requests for future use
@@ -96,6 +97,17 @@ func (ah *ArticleHandler) HandleUpdateArticle(w http.ResponseWriter, r *http.Req
 		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Invalid request payload"})
 		return
 	}
+	user, err := middleware.GetUser(r)
+	if err != nil {
+		ah.logger.Println("Error getting user from context:", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
+		return
+	}
+	if user.ID != existingArticle.AuthorID {
+		utils.WriteJSON(w, http.StatusForbidden, utils.Envelope{"error": "You are not the owner of this article"})
+		return
+	}
+
 	if updatedArticleRequest.Title != nil {
 		existingArticle.Title = *updatedArticleRequest.Title
 	}
@@ -125,6 +137,26 @@ func (ah *ArticleHandler) HandleDeleteArticle(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		ah.logger.Println("Error reading article ID:", err)
 		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Invalid article ID"})
+		return
+	}
+	existingArticle, err := ah.articleStore.GetArticleByID(articleID)
+	if err != nil {
+		ah.logger.Println("Error getting article by ID:", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
+		return
+	}
+	if existingArticle == nil {
+		http.NotFound(w, r)
+		return
+	}
+	user, err := middleware.GetUser(r)
+	if err != nil {
+		ah.logger.Println("Error getting user from context:", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
+		return
+	}
+	if user.ID != existingArticle.AuthorID {
+		utils.WriteJSON(w, http.StatusForbidden, utils.Envelope{"error": "You are not the owner of this article"})
 		return
 	}
 
