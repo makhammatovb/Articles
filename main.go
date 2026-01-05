@@ -10,7 +10,7 @@ import (
 	"github.com/makhammatovb/Articles/internal/app"
 )
 
-// main function to start the server
+// main function to start the server server
 func main() {
 	// defines a command-line flag for the port number, defaulting to 8080 if not provided
 	var port int
